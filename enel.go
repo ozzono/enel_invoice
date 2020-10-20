@@ -21,23 +21,23 @@ var (
 type Flow struct {
 	c       context.Context
 	user    UserData
-	invoice Invoice
+	Invoice Invoice
 	cancel  []context.CancelFunc
 }
 
 //Invoice has all the invoice data needed for payment
 type Invoice struct {
-	dueDate string
-	value   string
-	barCode string
-	status  string
+	DueDate string
+	Value   string
+	BarCode string
+	Status  string
 }
 
 //UserData has all the needed data to login
 type UserData struct {
-	email string
-	pw    string
-	name  string
+	Email string
+	Pw    string
+	Name  string
 }
 
 func init() {
@@ -67,7 +67,7 @@ func (flow *Flow) InvoiceFlow() (Invoice, error) {
 		log.Println(err)
 		return Invoice{}, err
 	}
-	return flow.invoice, nil
+	return flow.Invoice, nil
 }
 
 func (flow *Flow) login() error {
@@ -78,9 +78,9 @@ func (flow *Flow) login() error {
 		chromedp.WaitVisible(`h1.title`),
 		chromedp.Sleep(2*time.Second),
 		chromedp.Click(`#email`, chromedp.NodeVisible, chromedp.ByID),
-		chromedp.SendKeys("#email", kb.End+flow.user.email, chromedp.ByID),
+		chromedp.SendKeys("#email", kb.End+flow.user.Email, chromedp.ByID),
 		chromedp.Click(`#senha`, chromedp.NodeVisible, chromedp.ByID),
-		chromedp.SendKeys("#senha", kb.End+flow.user.pw, chromedp.ByID),
+		chromedp.SendKeys("#senha", kb.End+flow.user.Pw, chromedp.ByID),
 		chromedp.Click(`#btnLoginEmail`, chromedp.NodeVisible, chromedp.ByID),
 		chromedp.WaitVisible(`i.aes-sair`),
 		chromedp.Text(
@@ -89,7 +89,7 @@ func (flow *Flow) login() error {
 			chromedp.ByJSPath,
 		),
 	)
-	if strings.ToLower(name) != strings.ToLower(flow.user.name) {
+	if strings.ToLower(name) != strings.ToLower(flow.user.Name) {
 		return fmt.Errorf("Login failure; user name did not match")
 	}
 	if err == nil {
@@ -112,13 +112,13 @@ func (flow *Flow) invoiceList() error {
 	}
 
 	if strings.Contains(table, "Pendente") {
-		flow.invoice.status = "pending"
+		flow.Invoice.Status = "pending"
 	}
 	if strings.Contains(table, "Vencido") {
-		flow.invoice.status = "overdue"
+		flow.Invoice.Status = "overdue"
 	}
 
-	if flow.invoice.status == "pending" || flow.invoice.status == "overdue" {
+	if flow.Invoice.Status == "pending" || flow.Invoice.Status == "overdue" {
 		detailHeader := ""
 		err = chromedp.Run(flow.c,
 			chromedp.Click(
@@ -151,17 +151,17 @@ func (flow *Flow) invoiceData() error {
 	err := chromedp.Run(flow.c,
 		chromedp.Text(
 			`document.querySelector("#detalhamento > div.aes-section.conta-header > div > div:nth-child(1) > div > div.layout-align-center-end.layout-column.flex > span.value")`,
-			&flow.invoice.value,
+			&flow.Invoice.Value,
 			chromedp.ByJSPath,
 		),
 		chromedp.Text(
 			`document.querySelector("#detalhamento > div.aes-section.conta-header > div > div:nth-child(1) > div > div.layout-align-center-start.layout-column.flex > span.value")`,
-			&flow.invoice.dueDate,
+			&flow.Invoice.DueDate,
 			chromedp.ByJSPath,
 		),
 		chromedp.Text(
 			`document.querySelector("#detalhamento > div.aes-section.conta-header > div > div.row-conta-detalhes.flex-100 > div > div.box-codigo-barras.layout-align-center-stretch.layout-column.flex-gt-sm-20.flex-100 > div:nth-child(2) > div.codigo-barras.layout-align-center-center.layout-row > span")`,
-			&flow.invoice.barCode,
+			&flow.Invoice.BarCode,
 			chromedp.ByJSPath,
 		),
 	)
@@ -171,7 +171,7 @@ func (flow *Flow) invoiceData() error {
 	flow.formatInvoice()
 	if err == nil {
 		log.Println("Successfully fetched invoice data")
-		log.Printf("invoice: %v", flow.invoice)
+		log.Printf("invoice: %v", flow.Invoice)
 	}
 	return nil
 }
@@ -234,7 +234,7 @@ func (flow *Flow) waitVisible(something string) error {
 }
 
 func (flow *Flow) formatInvoice() {
-	flow.invoice.barCode = strings.Replace(flow.invoice.barCode, " ", "", -1)
-	flow.invoice.value = strings.Replace(strings.TrimPrefix(flow.invoice.value, "R$"), ",", ".", -1)
-	//Discuss: should flow.invoice.dueDate be parsed to something else? unchanged: dd/mm/yyyy
+	flow.Invoice.BarCode = strings.Replace(flow.Invoice.BarCode, " ", "", -1)
+	flow.Invoice.Value = strings.Replace(strings.TrimPrefix(flow.Invoice.Value, "R$"), ",", ".", -1)
+	//Discuss: should flow.Invoice.DueDate be parsed to something else? unchanged: dd/mm/yyyy
 }

@@ -2,10 +2,8 @@ package enel
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"strings"
 	"time"
@@ -179,44 +177,9 @@ func (flow *Flow) invoiceData() error {
 }
 
 //NewFlow creates a flow with context besides user and invoice data
-func NewFlow(headless bool) (Flow, error) {
+func NewFlow(headless bool) Flow {
 	ctx, cancel := setContext(headless)
-	user, err := setUser()
-	return Flow{c: ctx, user: user, cancel: cancel}, err
-}
-
-func setUser() (UserData, error) {
-	user, err := readFile()
-	if err != nil {
-		return user, fmt.Errorf("failed to read json file: %v", err)
-	}
-	if len(user.email) == 0 {
-		return user, fmt.Errorf("invalid user email; cannot be empty")
-	}
-	if len(user.pw) == 0 {
-		return user, fmt.Errorf("invalid user password; cannot be empty")
-	}
-	if len(user.name) == 0 {
-		return user, fmt.Errorf("invalid user name; cannot be empty")
-	}
-	return user, nil
-}
-
-func readFile() (UserData, error) {
-	if len(configPath) == 0 {
-		return UserData{}, fmt.Errorf("invalid path; cannot be empty %s", configPath)
-	}
-	jsonFile, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return UserData{}, err
-	}
-	user := map[string]string{}
-	err = json.Unmarshal(jsonFile, &user)
-	return UserData{
-		email: user["email"],
-		pw:    user["pw"],
-		name:  user["name"],
-	}, err
+	return Flow{c: ctx, user: user, cancel: cancel}
 }
 
 func setContext(headless bool) (context.Context, []context.CancelFunc) {

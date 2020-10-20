@@ -20,7 +20,7 @@ var (
 // Flow contains and the data and methods needed to crawl through the enel webpage
 type Flow struct {
 	c       context.Context
-	user    UserData
+	User    UserData
 	Invoice Invoice
 	cancel  []context.CancelFunc
 }
@@ -78,9 +78,9 @@ func (flow *Flow) login() error {
 		chromedp.WaitVisible(`h1.title`),
 		chromedp.Sleep(2*time.Second),
 		chromedp.Click(`#email`, chromedp.NodeVisible, chromedp.ByID),
-		chromedp.SendKeys("#email", kb.End+flow.user.Email, chromedp.ByID),
+		chromedp.SendKeys("#email", kb.End+flow.User.Email, chromedp.ByID),
 		chromedp.Click(`#senha`, chromedp.NodeVisible, chromedp.ByID),
-		chromedp.SendKeys("#senha", kb.End+flow.user.Pw, chromedp.ByID),
+		chromedp.SendKeys("#senha", kb.End+flow.User.Pw, chromedp.ByID),
 		chromedp.Click(`#btnLoginEmail`, chromedp.NodeVisible, chromedp.ByID),
 		chromedp.WaitVisible(`i.aes-sair`),
 		chromedp.Text(
@@ -89,7 +89,7 @@ func (flow *Flow) login() error {
 			chromedp.ByJSPath,
 		),
 	)
-	if strings.ToLower(name) != strings.ToLower(flow.user.Name) {
+	if strings.ToLower(name) != strings.ToLower(flow.User.Name) {
 		return fmt.Errorf("Login failure; user name did not match")
 	}
 	if err == nil {

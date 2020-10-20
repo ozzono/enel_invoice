@@ -179,7 +179,7 @@ func (flow *Flow) invoiceData() error {
 //NewFlow creates a flow with context besides user and invoice data
 func NewFlow(headless bool) Flow {
 	ctx, cancel := setContext(headless)
-	return Flow{c: ctx, user: user, cancel: cancel}
+	return Flow{c: ctx, cancel: cancel}
 }
 
 func setContext(headless bool) (context.Context, []context.CancelFunc) {

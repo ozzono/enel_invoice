@@ -1,4 +1,4 @@
-package main
+package enel
 
 import (
 	"context"
@@ -16,24 +16,27 @@ import (
 
 var (
 	configPath string
-	user       userData
-	timeout    int
+	user       UserData
 )
 
-type flow struct {
+// Flow contains and the data and methods needed to crawl through the enel webpage
+type Flow struct {
 	c       context.Context
-	user    userData
-	invoice invoice
+	user    UserData
+	invoice Invoice
+	cancel  []context.CancelFunc
 }
 
-type invoice struct {
+//Invoice has all the invoice data needed for payment
+type Invoice struct {
 	dueDate string
 	value   string
 	barCode string
 	status  string
 }
 
-type userData struct {
+//UserData has all the needed data to login
+type UserData struct {
 	email string
 	pw    string
 	name  string
@@ -41,34 +44,35 @@ type userData struct {
 
 func init() {
 	flag.StringVar(&configPath, "user-data", "", "Sets the path for the user data JSON file")
-	flag.IntVar(&timeout, "timeout", 30, "Sets the flow timeout in seconds")
 }
 
-func main() {
-	flag.Parse()
-	flow, cancel, err := newFlow(false)
-	if err != nil {
-		log.Printf("failed to create new flow: %v", err)
+//InvoiceFlow crawls through the enel page
+func (flow *Flow) InvoiceFlow() (Invoice, error) {
+	for i := range flow.cancel {
+		defer flow.cancel[i]()
 	}
 
-	for i := range cancel {
-		defer cancel[i]()
-	}
-
-	err = flow.login()
+	err := flow.login()
 	if err != nil {
 		log.Println(err)
-		return
+		return Invoice{}, err
 	}
 
 	err = flow.invoiceList()
 	if err != nil {
 		log.Println(err)
-		return
+		return Invoice{}, err
 	}
+
+	err = flow.invoiceData()
+	if err != nil {
+		log.Println(err)
+		return Invoice{}, err
+	}
+	return flow.invoice, nil
 }
 
-func (flow *flow) login() error {
+func (flow *Flow) login() error {
 	log.Println("Starting login flow")
 	name := ""
 	err := chromedp.Run(flow.c,
@@ -96,7 +100,7 @@ func (flow *flow) login() error {
 	return err
 }
 
-func (flow *flow) invoiceList() error {
+func (flow *Flow) invoiceList() error {
 	log.Println("Starting invoiceList flow")
 	table := ""
 	err := chromedp.Run(flow.c,
@@ -108,7 +112,15 @@ func (flow *flow) invoiceList() error {
 	if err != nil {
 		return fmt.Errorf("invoiceFlow err: %v", err)
 	}
+
 	if strings.Contains(table, "Pendente") {
+		flow.invoice.status = "pending"
+	}
+	if strings.Contains(table, "Vencido") {
+		flow.invoice.status = "overdue"
+	}
+
+	if flow.invoice.status == "pending" || flow.invoice.status == "overdue" {
 		detailHeader := ""
 		err = chromedp.Run(flow.c,
 			chromedp.Click(
@@ -137,17 +149,43 @@ func (flow *flow) invoiceList() error {
 	return nil
 }
 
-func (flow *flow) invoiceData() {
-
+func (flow *Flow) invoiceData() error {
+	err := chromedp.Run(flow.c,
+		chromedp.Text(
+			`document.querySelector("#detalhamento > div.aes-section.conta-header > div > div:nth-child(1) > div > div.layout-align-center-end.layout-column.flex > span.value")`,
+			&flow.invoice.value,
+			chromedp.ByJSPath,
+		),
+		chromedp.Text(
+			`document.querySelector("#detalhamento > div.aes-section.conta-header > div > div:nth-child(1) > div > div.layout-align-center-start.layout-column.flex > span.value")`,
+			&flow.invoice.dueDate,
+			chromedp.ByJSPath,
+		),
+		chromedp.Text(
+			`document.querySelector("#detalhamento > div.aes-section.conta-header > div > div.row-conta-detalhes.flex-100 > div > div.box-codigo-barras.layout-align-center-stretch.layout-column.flex-gt-sm-20.flex-100 > div:nth-child(2) > div.codigo-barras.layout-align-center-center.layout-row > span")`,
+			&flow.invoice.barCode,
+			chromedp.ByJSPath,
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("chromedp.Run err: %v", err)
+	}
+	flow.formatInvoice()
+	if err == nil {
+		log.Println("Successfully fetched invoice data")
+		log.Printf("invoice: %v", flow.invoice)
+	}
+	return nil
 }
 
-func newFlow(headless bool) (flow, []context.CancelFunc, error) {
+//NewFlow creates a flow with context besides user and invoice data
+func NewFlow(headless bool) (Flow, error) {
 	ctx, cancel := setContext(headless)
 	user, err := setUser()
-	return flow{c: ctx, user: user}, cancel, err
+	return Flow{c: ctx, user: user, cancel: cancel}, err
 }
 
-func setUser() (userData, error) {
+func setUser() (UserData, error) {
 	user, err := readFile()
 	if err != nil {
 		return user, fmt.Errorf("failed to read json file: %v", err)
@@ -164,17 +202,17 @@ func setUser() (userData, error) {
 	return user, nil
 }
 
-func readFile() (userData, error) {
+func readFile() (UserData, error) {
 	if len(configPath) == 0 {
-		return userData{}, fmt.Errorf("invalid path; cannot be empty %s", configPath)
+		return UserData{}, fmt.Errorf("invalid path; cannot be empty %s", configPath)
 	}
 	jsonFile, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		return userData{}, err
+		return UserData{}, err
 	}
 	user := map[string]string{}
 	err = json.Unmarshal(jsonFile, &user)
-	return userData{
+	return UserData{
 		email: user["email"],
 		pw:    user["pw"],
 		name:  user["name"],
@@ -188,16 +226,14 @@ func setContext(headless bool) (context.Context, []context.CancelFunc) {
 		// Set the headless flag to false to display the browser window
 		chromedp.Flag("headless", headless),
 	)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(int64(timeout))*time.Second)
-	outputFunc = append(outputFunc, cancel)
-	ctx, cancel = chromedp.NewExecAllocator(context.Background(), opts...)
+	ctx, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	outputFunc = append(outputFunc, cancel)
 	ctx, cancel = chromedp.NewContext(ctx)
 	outputFunc = append(outputFunc, cancel)
 	return ctx, outputFunc
 }
 
-func (flow *flow) textByPath(path string) (string, error) {
+func (flow *Flow) textByPath(path string) (string, error) {
 	output := ""
 	err := chromedp.Run(flow.c,
 		chromedp.Text(
@@ -212,7 +248,7 @@ func (flow *flow) textByPath(path string) (string, error) {
 	return output, nil
 }
 
-func (flow *flow) textByID(id string) (string, error) {
+func (flow *Flow) textByID(id string) (string, error) {
 	output := ""
 	err := chromedp.Run(flow.c,
 		chromedp.Text(
@@ -227,9 +263,15 @@ func (flow *flow) textByID(id string) (string, error) {
 	return output, nil
 }
 
-func (flow *flow) waitVisible(something string) error {
+func (flow *Flow) waitVisible(something string) error {
 	log.Printf("waiting for %v", something)
 	return chromedp.Run(flow.c,
 		chromedp.WaitVisible(something),
 	)
+}
+
+func (flow *Flow) formatInvoice() {
+	flow.invoice.barCode = strings.Replace(flow.invoice.barCode, " ", "", -1)
+	flow.invoice.value = strings.Replace(strings.TrimPrefix(flow.invoice.value, "R$"), ",", ".", -1)
+	//Discuss: should flow.invoice.dueDate be parsed to something else? unchanged: dd/mm/yyyy
 }

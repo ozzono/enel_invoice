@@ -171,7 +171,6 @@ func (flow *Flow) invoiceData() error {
 	flow.formatInvoice()
 	if err == nil {
 		log.Println("Successfully fetched invoice data")
-		log.Printf("invoice: %v", flow.Invoice)
 	}
 	return nil
 }

@@ -35,9 +35,9 @@ type Invoice struct {
 
 //UserData has all the needed data to login
 type UserData struct {
-	Email string
-	Pw    string
-	Name  string
+	Email string `json:"email"`
+	Pw    string `json:"pw"`
+	Name  string `json:"name"`
 }
 
 func init() {

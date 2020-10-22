@@ -2,7 +2,6 @@ package enel
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"strings"
@@ -38,10 +37,6 @@ type UserData struct {
 	Email string `json:"email"`
 	Pw    string `json:"pw"`
 	Name  string `json:"name"`
-}
-
-func init() {
-	flag.StringVar(&configPath, "user-data", "", "Sets the path for the user data JSON file")
 }
 
 //InvoiceFlow crawls through the enel page

@@ -84,7 +84,7 @@ func (flow *Flow) login() error {
 			chromedp.ByJSPath,
 		),
 	)
-	if strings.ToLower(name) != strings.ToLower(flow.User.Name) {
+	if strings.Contains(strings.ToLower(flow.User.Name), strings.ToLower(name)) {
 		return fmt.Errorf("Login failure; user name did not match")
 	}
 	if err == nil {
@@ -163,7 +163,7 @@ func (flow *Flow) invoiceData() error {
 	if err != nil {
 		return fmt.Errorf("chromedp.Run err: %v", err)
 	}
-	flow.formatInvoice()
+
 	if err == nil {
 		log.Println("Successfully fetched invoice data")
 	}
@@ -225,10 +225,4 @@ func (flow *Flow) waitVisible(something string) error {
 	return chromedp.Run(flow.c,
 		chromedp.WaitVisible(something),
 	)
-}
-
-func (flow *Flow) formatInvoice() {
-	flow.Invoice.BarCode = strings.Replace(flow.Invoice.BarCode, " ", "", -1)
-	flow.Invoice.Value = strings.Replace(strings.TrimPrefix(flow.Invoice.Value, "R$"), ",", ".", -1)
-	//Discuss: should flow.Invoice.DueDate be parsed to something else? unchanged: dd/mm/yyyy
 }

@@ -129,9 +129,7 @@ func (flow *Flow) invoiceList() error {
 			return fmt.Errorf("missing header; loaded the wrong page")
 		}
 	}
-	if err == nil {
-		log.Println("Successfully selected the last listed invoice")
-	}
+	log.Println("Successfully selected the last listed invoice")
 	return nil
 }
 
@@ -156,10 +154,9 @@ func (flow *Flow) invoiceData() error {
 	if err != nil {
 		return fmt.Errorf("chromedp.Run err: %v", err)
 	}
+	flow.Invoice.BarCode = strings.Replace(flow.Invoice.BarCode, " ", "", -1)
 
-	if err == nil {
-		log.Println("Successfully fetched invoice data")
-	}
+	log.Println("Successfully fetched invoice data")
 	return nil
 }
 

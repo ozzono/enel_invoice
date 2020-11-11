@@ -3,10 +3,12 @@ package enel
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"testing"
 
-	enel "github.com/ozzono/enel_invoice"
+	// "invoices/enel-invoice"
+	// only used when under development
+
+	enel "github.com/ozzono/enel-invoice"
 )
 
 func Test(t *testing.T) {
@@ -22,7 +24,6 @@ func Test(t *testing.T) {
 	}
 	invoiceData, err := f.InvoiceFlow()
 	if err != nil {
-		log.Printf("f.InvoiceFlow err: %v", err)
 		t.Fatal(err)
 	}
 	if len(invoiceData.BarCode) == 0 {

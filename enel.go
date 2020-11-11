@@ -21,7 +21,7 @@ type Flow struct {
 	c       context.Context
 	User    UserData
 	Invoice Invoice
-	cancel  []context.CancelFunc
+	cancel  func()
 }
 
 //Invoice has all the invoice data needed for payment
@@ -41,25 +41,20 @@ type UserData struct {
 
 //InvoiceFlow crawls through the enel page
 func (flow *Flow) InvoiceFlow() (Invoice, error) {
-	for i := range flow.cancel {
-		defer flow.cancel[i]()
-	}
+	defer flow.cancel()
 
 	err := flow.login()
 	if err != nil {
-		log.Println(err)
 		return Invoice{}, err
 	}
 
 	err = flow.invoiceList()
 	if err != nil {
-		log.Println(err)
 		return Invoice{}, err
 	}
 
 	err = flow.invoiceData()
 	if err != nil {
-		log.Println(err)
 		return Invoice{}, err
 	}
 	return flow.Invoice, nil
@@ -84,12 +79,10 @@ func (flow *Flow) login() error {
 			chromedp.ByJSPath,
 		),
 	)
-	if strings.Contains(strings.ToLower(flow.User.Name), strings.ToLower(name)) {
+	if !strings.Contains(strings.ToLower(flow.User.Name), strings.ToLower(name)) {
 		return fmt.Errorf("Login failure; user name did not match")
 	}
-	if err == nil {
-		log.Println("Successfully logged in")
-	}
+	log.Println("Successfully logged in")
 	return err
 }
 
@@ -176,7 +169,7 @@ func NewFlow(headless bool) Flow {
 	return Flow{c: ctx, cancel: cancel}
 }
 
-func setContext(headless bool) (context.Context, []context.CancelFunc) {
+func setContext(headless bool) (context.Context, func()) {
 	outputFunc := []context.CancelFunc{}
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.DisableGPU,
@@ -187,7 +180,11 @@ func setContext(headless bool) (context.Context, []context.CancelFunc) {
 	outputFunc = append(outputFunc, cancel)
 	ctx, cancel = chromedp.NewContext(ctx)
 	outputFunc = append(outputFunc, cancel)
-	return ctx, outputFunc
+	return ctx, func() {
+		for i := range outputFunc {
+			outputFunc[i]()
+		}
+	}
 }
 
 func (flow *Flow) textByPath(path string) (string, error) {

@@ -13,6 +13,7 @@ type Flow struct {
 	cookies []*http.Cookie
 	User    User
 	Invoice Invoice
+	bearer  string
 }
 
 // User has the required data to login
@@ -25,7 +26,11 @@ type User struct {
 // Invoice contains the needed payment data
 type Invoice struct {
 	Value   float64
-	DueDate string
+	DueDate struct {
+		Year  int
+		Month int
+		Day   int
+	}
 	BarCode string
 }
 
@@ -36,21 +41,26 @@ func NewFlow(email, password string) Flow {
 
 func main() {
 	flow := NewFlow("huvirgilio@gmail.com", "F52q7u4d2")
-	bearer, err := flow.login()
+	err := flow.login()
 	if err != nil {
 		log.Printf("login err: %v", err)
 		return
 	}
-	log.Printf("Bearer: %s", bearer)
+	log.Printf("Bearer: %s", flow.bearer)
+	err = flow.getInvoice()
+	if err != nil {
+		log.Printf("getInvoice err: %v", err)
+		return
+	}
 }
 
-func (f *Flow) login() (string, error) {
+func (f *Flow) login() error {
 	f.User.Canal = "ZINT"
 	url := "https://portalhome.eneldistribuicaosp.com.br/api/firebase/login"
 
 	payload, err := json.Marshal(f.User)
 	if err != nil {
-		return "", fmt.Errorf("json.Marshal err: %v", err)
+		return fmt.Errorf("json.Marshal err: %v", err)
 	}
 
 	headers := map[string]string{
@@ -61,16 +71,47 @@ func (f *Flow) login() (string, error) {
 
 	res, err := request(url, "POST", headers, strings.NewReader(string(payload)), nil)
 	if err != nil {
-		return "", fmt.Errorf("request err: %v", err)
+		return fmt.Errorf("request err: %v", err)
 	}
 	defer res.Body.Close()
 	f.cookies = res.Cookies()
 
 	data, err := parseBody(res)
 	if len(fmt.Sprint(data["E_MSG"])) != 0 {
-		return "", fmt.Errorf("E_MSG: %v", data["E_MSG"])
+		return fmt.Errorf("E_MSG: %v", data["E_MSG"])
 	}
-	return fmt.Sprint(data["token"]), nil
+	f.bearer = fmt.Sprint(data["token"])
+	return nil
+}
+
+func (f *Flow) getInvoice() error {
+	url := "https://portalhome.eneldistribuicaosp.com.br/api/sap/portalinfo"
+
+	payload, err := json.Marshal(f.User)
+	if err != nil {
+		return fmt.Errorf("json.Marshal err: %v", err)
+	}
+
+	headers := map[string]string{
+		"User-Agent":      "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0",
+		"Accept":          "application/json, text/plain, */*",
+		"Accept-Language": "en-US,en;q=0.5",
+		"Content-Type":    "application/json;charset=utf-8",
+		"Authorization":   "Bearer " + f.bearer,
+		"DNT":             "1",
+		"Connection":      "keep-alive",
+		"TE":              "Trailers",
+	}
+	res, err := request(url, "POST", headers, strings.NewReader(string(payload)), f.cookies)
+	if err != nil {
+		return fmt.Errorf("request err: %v", err)
+	}
+	defer res.Body.Close()
+	f.cookies = res.Cookies()
+
+	// data, err := parseBody(res)
+
+	return nil
 }
 
 func request(url, method string, headers map[string]string, payload *strings.Reader, cookies []*http.Cookie) (*http.Response, error) {

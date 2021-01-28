@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/knq/chromedp/kb"
+	"github.com/chromedp/chromedp/kb"
 )
 
 var (

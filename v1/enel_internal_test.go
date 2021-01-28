@@ -4,20 +4,18 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"testing"
-
 	// "invoices/enel-invoice"
 	// only used when under development
-
-	enel "github.com/ozzono/enel-invoice"
+	// enel "github.com/ozzono/enel-invoice"
 )
 
 func Test(t *testing.T) {
-	f := enel.NewFlow(true)
+	f := NewFlow(true)
 	config, err := readFile("config_test.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.User = enel.UserData{
+	f.User = UserData{
 		Email: config["Email"],
 		Pw:    config["Pw"],
 		Name:  config["Name"],

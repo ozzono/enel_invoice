@@ -18,8 +18,9 @@ type Flow struct {
 
 // User has the required data to login
 type User struct {
-	Canal    string `json:"I_CANAL"`
-	Email    string `json:"I_EMAIL"`
+	Canal string `json:"I_CANAL"`
+	Email string `json:"I_EMAIL"`
+
 	Password string `json:"I_PASSWORD"`
 }
 
